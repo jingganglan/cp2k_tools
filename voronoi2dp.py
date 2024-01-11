@@ -1,9 +1,11 @@
 import numpy as np
 
-# Atomic number to element symbol mapping (partial, add more if needed)
+# Expanded atomic number to element symbol mapping
 atomic_number_to_symbol = {
-    1: 'H', 2: 'He', 6: 'C', 7: 'N', 8: 'O', 17:'Cl', 19:'K'
-    # Add more mappings based on your data
+    1: 'H', 2: 'He', 6: 'C', 7: 'N', 8: 'O', 11: 'Na', 12: 'Mg',
+    15: 'P', 16: 'S', 17: 'Cl', 19: 'K', 20: 'Ca', 26: 'Fe',
+    # Add more mappings if needed
+    # You can easily add other elements here using their atomic number
 }
 
 def parse_line(line):
@@ -27,25 +29,26 @@ def read_trajectory(filename):
     atom_types = set()
     type_indices_first_snapshot = []
     first_snapshot_processed = False
+    current_snapshot = -1
 
     for line in lines[1:]:
-        if line.startswith('# Step') and first_snapshot_processed:
-            # Skip processing other snapshots after the first one is done
-            break
-        elif line.startswith('# Step'):
-            first_snapshot_processed = True
+        if line.startswith('# Step'):
+            current_snapshot += 1
+            if current_snapshot > 0 and not first_snapshot_processed:
+                first_snapshot_processed = True
+            coord_data.append([])
+            dipole_data.append([])
         elif line.startswith('# Cell'):
             box_data.append(parse_line(line))
-        elif not line.startswith('#') and first_snapshot_processed:
+        elif not line.startswith('#') and len(line.split()) > 10:
             line_data = parse_line(line)
-            if len(line_data) > 10:
-                atomic_charge = int(line_data[1])
-                element_symbol = atomic_number_to_symbol.get(atomic_charge, 'Unknown')
-                atom_types.add(element_symbol)
-                if first_snapshot_processed:
-                    type_indices_first_snapshot.append(element_symbol)
-                coord_data.append(line_data[3:6])  # Extracting position data
-                dipole_data.append(line_data[9:12])  # Extracting dipole data
+            atomic_charge = int(line_data[1])
+            element_symbol = atomic_number_to_symbol.get(atomic_charge, 'Unknown')
+            atom_types.add(element_symbol)
+            coord_data[current_snapshot].extend(line_data[3:6])  # Extracting position data
+            dipole_data[current_snapshot].extend(line_data[9:12])  # Extracting dipole data
+            if current_snapshot == 0:
+                type_indices_first_snapshot.append(element_symbol)
 
     # Creating type map
     type_map = {element: idx for idx, element in enumerate(sorted(atom_types))}
@@ -69,7 +72,8 @@ np.save('atomic_dipole.npy', dipole)
 # Saving type map
 with open('type_map.raw', 'w') as file:
     for element, idx in type_map.items():
-        file.write(f'{element}: {idx}\n')
+        file.write(f'{element}\n')
 
 # Saving type indices of the first snapshot
 np.savetxt('type.raw', [type_indices_first_snapshot], fmt='%d')
+
