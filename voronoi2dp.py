@@ -39,7 +39,7 @@ def read_trajectory(filename):
             coord_data.append([])
             dipole_data.append([])
         elif line.startswith('# Cell'):
-            box_data.append(parse_line(line))
+            box_data.append(parse_line(line)[2:11])
         elif not line.startswith('#') and len(line.split()) > 10:
             line_data = parse_line(line)
             atomic_charge = int(line_data[1])
